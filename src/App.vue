@@ -6,7 +6,7 @@ import Office from './components/Office'
 
 const defaultRequestConfig = {
   method: 'get',
-  responseType: 'blob'
+  // responseType: 'blob'
 }
 
 export default {
@@ -57,6 +57,7 @@ export default {
       tempValue: '',
       parseComponet: 'Markdown',
       styler: ''
+      abortController: null,
     }
   },
   watch: {
@@ -79,6 +80,9 @@ export default {
   mounted: function () {
     this.updateType()
   },
+  beforeDestroy: function () {
+    if (this.abortController && !this.abortController.signal.aborted) x.abort();
+  },
   methods: {
     tempValueC: function () {
       if (this.value) {
@@ -99,16 +103,19 @@ export default {
       }
     },
     download: function (config) {
-      return new Promise((resolve, reject) => {
-        axios(config).then(res => {
-          const reader = new FileReader()
-          reader.readAsText(new Blob([res.data]))
-          reader.onload = function () {
-            resolve(reader.result)
-          }
-        }).catch(err => {
-          reject(err)
-        })
+      return new Promise(async (resolve, reject) => {
+        this.abortController = new AbortController();
+        const request = new Request({
+          credentials: 'same-origin',
+          method: 'get',
+          signal: this.abortController.signal,
+          ...config
+        });
+        const response = await fetch(request);
+        if (!response.ok) {
+          return reject(new Error(response?.statusText || 'UNKNOWN'));
+        }
+        resolve(await response.text());
       })
     },
     setHeiht: function () {
