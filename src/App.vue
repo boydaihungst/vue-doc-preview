@@ -1,184 +1,192 @@
 <script>
-import axios from 'axios'
-import Markdown from './components/Markdown'
-import TextPreview from './components/TextPreview'
-import Office from './components/Office'
+import axios from 'axios';
+import Markdown from './components/Markdown';
+import TextPreview from './components/TextPreview';
+import Office from './components/Office';
 
 const defaultRequestConfig = {
   method: 'get',
-  // responseType: 'blob'
-}
+  responseType: 'blob',
+};
 
 export default {
   name: 'app',
   components: {
     Markdown,
     TextPreview,
-    Office
+    Office,
   },
   props: {
     type: {
       type: String,
-      default: 'md'
+      default: 'md',
     },
     value: {
       type: String,
-      default: ''
+      default: '',
     },
     height: {
       type: Number,
-      default: 90
+      default: 90,
     },
     language: {
       type: String,
-      default: ''
+      default: '',
     },
     mdStyle: {
       type: Object,
-      default: null
+      default: null,
     },
     textStyle: {
       type: Object,
-      default: null
+      default: null,
     },
     url: {
       type: String,
-      default: ''
+      default: '',
     },
     requestConfig: {
       type: Object,
-      default () {
-        return {}
-      }
-    }
+      default() {
+        return {};
+      },
+    },
   },
   data: function () {
     return {
       tempValue: '',
       parseComponet: 'Markdown',
-      styler: ''
-      abortController: null,
-    }
+      styler: '',
+    };
   },
   watch: {
     type: function (val) {
-      this.updateType()
-    }
+      this.updateType();
+    },
   },
   computed: {
     actualValue: function () {
-      this.tempValueC()
+      this.tempValueC();
       if (this.type === 'office') {
-        return `https://view.officeapps.live.com/op/view.aspx?src=${this.tempValue}`
+        return `https://view.officeapps.live.com/op/view.aspx?src=${this.tempValue}`;
       } else if (this.type === 'code' && this.language) {
-        return `\`\`\`${this.language}\n${this.tempValue}\n\`\`\``
+        return `\`\`\`${this.language}\n${this.tempValue}\n\`\`\``;
       } else {
-        return this.tempValue
+        return this.tempValue;
       }
-    }
+    },
   },
   mounted: function () {
-    this.updateType()
-  },
-  beforeDestroy: function () {
-    if (this.abortController && !this.abortController.signal.aborted) x.abort();
+    this.updateType();
   },
   methods: {
     tempValueC: function () {
       if (this.value) {
-        this.tempValue = this.value
+        this.tempValue = this.value;
       } else {
         if (this.type !== 'office') {
-          let self = this
-          Object.assign(defaultRequestConfig, this.requestConfig, {url: this.url})
-          this.download(defaultRequestConfig).then(data => {
-            self.tempValue = data
-          }).catch(err => {
-            self.tempValue = 'Download Error!'
-            console.error(err)
-          })
+          let self = this;
+          Object.assign(defaultRequestConfig, this.requestConfig, {
+            url: this.url,
+          });
+          this.download(defaultRequestConfig)
+            .then((data) => {
+              self.tempValue = data;
+            })
+            .catch((err) => {
+              self.tempValue = 'Download Error!';
+              console.error(err);
+            });
         } else {
-          this.tempValue = this.url
+          this.tempValue = this.url;
         }
       }
     },
     download: function (config) {
-      return new Promise(async (resolve, reject) => {
-        this.abortController = new AbortController();
-        const request = new Request({
-          credentials: 'same-origin',
-          method: 'get',
-          signal: this.abortController.signal,
-          ...config
-        });
-        const response = await fetch(request);
-        if (!response.ok) {
-          return reject(new Error(response?.statusText || 'UNKNOWN'));
-        }
-        resolve(await response.text());
-      })
+      return new Promise((resolve, reject) => {
+        axios({
+          ...config,
+          onDownloadProgress: (progressEvent) => {
+            this.$enmit('download-progress', progressEvent);
+          },
+          onUploadProgress: (progressEvent) => {
+            this.$enmit('upload-progress', progressEvent);
+          },
+        })
+          .then((res) => {
+            const reader = new FileReader();
+            reader.readAsText(new Blob([res.data]));
+            reader.onload = function () {
+              resolve(reader.result);
+            };
+          })
+          .catch((err) => {
+            reject(err);
+          });
+      });
     },
     setHeiht: function () {
-      let height = this.height
-      if (height < 0) height = 0
+      let height = this.height;
+      if (height < 0) height = 0;
       if (height > 100) {
         // height大于100时将视作固定高度，单位px
-        this.styler = `height: ${height}px`
+        this.styler = `height: ${height}px`;
       } else {
         // height小于等于100时为百分比高度
         if (this.type === 'office') {
-          const contentHeight = this.getClientHeight() * height / 100
-          this.styler = `height: ${contentHeight}px`
+          const contentHeight = (this.getClientHeight() * height) / 100;
+          this.styler = `height: ${contentHeight}px`;
         } else {
-          this.styler = `height: ${height}%`
+          this.styler = `height: ${height}%`;
         }
       }
     },
     getClientHeight: function () {
-      const clientHeight = document.documentElement.clientHeight
-      return clientHeight
+      const clientHeight = document.documentElement.clientHeight;
+      return clientHeight;
     },
     updateType: function () {
       switch (this.type) {
         case 'markdown':
-          this.parseComponet = 'Markdown'
-          break
+          this.parseComponet = 'Markdown';
+          break;
         case 'text':
-          this.parseComponet = 'TextPreview'
-          break
+          this.parseComponet = 'TextPreview';
+          break;
         case 'office':
-          this.parseComponet = 'Office'
-          break
+          this.parseComponet = 'Office';
+          break;
         case 'code':
-          this.parseComponet = 'Markdown'
-          break
+          this.parseComponet = 'Markdown';
+          break;
       }
-      this.setHeiht()
-    }
+      this.setHeiht();
+    },
   },
   render: function (h) {
-    let component = <div>Prop type error, Type must be markdown/office/text/code!</div>
+    let component = (
+      <div>Prop type error, Type must be markdown/office/text/code!</div>
+    );
     if (this.type === 'markdown' || this.type === 'code') {
-      component = <Markdown value={this.actualValue} mdStyle={this.mdStyle} />
+      component = <Markdown value={this.actualValue} mdStyle={this.mdStyle} />;
     } else if (this.type === 'text') {
-      component = <TextPreview value={this.actualValue} textStyle={this.textStyle} />
+      component = (
+        <TextPreview value={this.actualValue} textStyle={this.textStyle} />
+      );
     } else if (this.type === 'office') {
-      component = <Office value={this.actualValue} />
+      component = <Office value={this.actualValue} />;
     }
     return (
-      <div
-        id="VueDocPreviewRoot"
-        class="root"
-        style={this.styler}>
+      <div id="VueDocPreviewRoot" class="root" style={this.styler}>
         {component}
       </div>
-    )
-  }
-}
+    );
+  },
+};
 </script>
 
 <style lang="less" scoped>
-  .root {
-    height: 100%;
-  }
+.root {
+  height: 100%;
+}
 </style>
