@@ -96,6 +96,7 @@ export default {
             .catch((err) => {
               self.tempValue = 'Download Error!';
               console.error(err);
+              this.$emit('error');
             });
         } else {
           this.tempValue = this.url;
