@@ -107,11 +107,11 @@ export default {
         axios({
           ...config,
           onDownloadProgress: (progressEvent) => {
-            this.$enmit('download-progress', progressEvent);
+            this.$emit('download-progress', progressEvent);
           },
           onUploadProgress: (progressEvent) => {
-            this.$enmit('upload-progress', progressEvent);
-          },
+            this.$emit('upload-progress', progressEvent);
+          }
         })
           .then((res) => {
             const reader = new FileReader();
